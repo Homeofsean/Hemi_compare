@@ -1,0 +1,276 @@
+:root {
+  --bg0: #f3efe6;
+  --bg1: #e0d6c6;
+  --panel: rgba(255, 251, 243, 0.92);
+  --ink: #2a221a;
+  --muted: #6c5b49;
+  --line: #d4c5b0;
+  --accent: #0f766e;
+  --accent-2: #b45309;
+  --ok: #166534;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+  color: var(--ink);
+  background: radial-gradient(circle at 15% 10%, #fff8ea, var(--bg1) 55%, #cfbea5);
+}
+
+.app-shell {
+  width: 100%;
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(420px, 540px) 1fr;
+}
+
+.panel {
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  backdrop-filter: blur(4px);
+  padding: 14px;
+  overflow: visible;
+}
+
+h1 {
+  margin: 0 0 4px;
+  font-size: 1.3rem;
+}
+
+.subtitle {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+h2 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.section {
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.9rem;
+}
+
+input[type="file"],
+input[type="number"],
+select,
+button {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #b9a58b;
+  background: #fffdf7;
+  color: var(--ink);
+  border-radius: 8px;
+}
+
+button {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+button:hover {
+  border-color: var(--accent);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.buttons {
+  display: grid;
+  gap: 8px;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.checkbox input {
+  width: auto;
+}
+
+.roi-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 8px;
+  align-items: center;
+}
+
+.roi-grid label {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  background: #f8f2e8;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.data-table th,
+.data-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 6px;
+  text-align: left;
+}
+
+.data-table thead th {
+  background: #efe2cf;
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+pre {
+  margin: 0;
+  white-space: pre-wrap;
+  background: #f8f2e8;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+  min-height: 110px;
+  font-size: 0.84rem;
+}
+
+.hist-canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fffdf7;
+}
+
+.hist-stats {
+  margin-top: 8px;
+  min-height: 84px;
+  font-size: 0.78rem;
+}
+
+.plot-cursor {
+  margin-top: 6px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.legend-wrap {
+  border-bottom: none;
+}
+
+.legend-bar {
+  height: 14px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #1655d4 0%, #18a5e0 25%, #2aa84a 50%, #f7cc2f 75%, #e03e2f 100%);
+}
+
+.legend-labels {
+  margin-top: 6px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  display: flex;
+  justify-content: space-between;
+}
+
+.viewer-wrap {
+  display: block;
+  min-height: 100vh;
+}
+
+.viewer-3d-wrap {
+  position: relative;
+  height: 68vh;
+  min-height: 360px;
+}
+
+#viewer {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.viewer-charts {
+  border-top: 1px solid var(--line);
+  background: rgba(255, 251, 243, 0.88);
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  max-height: none;
+  overflow: visible;
+}
+
+.chart-card {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f8f2e8;
+  padding: 8px;
+}
+
+.chart-card h2 {
+  margin-bottom: 6px;
+}
+
+.status {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  font-size: 0.85rem;
+  padding: 6px 10px;
+  border: 1px solid #bca88c;
+  border-radius: 999px;
+  background: rgba(255, 251, 243, 0.9);
+}
+
+.hover-readout {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  font-size: 0.84rem;
+  padding: 7px 10px;
+  border: 1px solid #bca88c;
+  border-radius: 8px;
+  background: rgba(255, 251, 243, 0.92);
+  min-width: 240px;
+}
+
+@media (max-width: 980px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+  }
+
+  .panel {
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .viewer-3d-wrap {
+    height: 56vh;
+    min-height: 300px;
+  }
+}

@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GWS vs STL Fit Viewer</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./three.module.js",
+      "three/examples/jsm/controls/OrbitControls.js": "./OrbitControls.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="panel">
+      <h1>GWS vs STL Fit Viewer</h1>
+      <p class="subtitle">GWS is treated as the master geometry. STL is aligned to minimize distance error.</p>
+
+      <div class="section">
+        <label for="gwsInput">GWS File</label>
+        <input id="gwsInput" type="file" accept=".gws,.txt" />
+      </div>
+
+      <div class="section">
+        <label for="stlInput">STL File</label>
+        <input id="stlInput" type="file" accept=".stl" />
+      </div>
+
+      <div class="section">
+        <label for="gwsUnit">GWS Units</label>
+        <select id="gwsUnit">
+          <option value="inch" selected>inches</option>
+          <option value="mm">mm</option>
+          <option value="cm">cm</option>
+        </select>
+        <label for="stlUnit" style="margin-top:8px;">STL Units</label>
+        <select id="stlUnit">
+          <option value="inch" selected>inches</option>
+          <option value="mm">mm</option>
+          <option value="cm">cm</option>
+        </select>
+      </div>
+
+      <div class="section buttons">
+        <button id="fitBtn" disabled>Run Coarse Fit</button>
+        <button id="refineBtn" disabled>Refine Fit</button>
+        <button id="recalcRoiBtn" disabled>Recalculate ROI Refine</button>
+        <button id="recalcProxBtn" disabled>Recalculate Proximity Refine</button>
+        <button id="scalingModeBtn">Scaling: Independent XYZ</button>
+        <button id="toggleIncludedBtn" disabled>Hide Included ROI Points</button>
+        <button id="toggleExcludedBtn" disabled>Show Excluded ROI Points</button>
+        <button id="toggleProxExcludedBtn" disabled>Show Proximity-Excluded Points</button>
+        <button id="resetViewBtn">Reset View</button>
+      </div>
+
+      <div class="section">
+        <h2>Refine ROI (inches)</h2>
+        <label class="checkbox"><input id="useRefineRoi" type="checkbox" /> Use ROI bounds for refine fit</label>
+        <div class="roi-grid">
+          <label for="roiXMin">X Min</label>
+          <input id="roiXMin" type="number" step="0.001" />
+          <label for="roiXMax">X Max</label>
+          <input id="roiXMax" type="number" step="0.001" />
+
+          <label for="roiYMin">Y Min</label>
+          <input id="roiYMin" type="number" step="0.001" />
+          <label for="roiYMax">Y Max</label>
+          <input id="roiYMax" type="number" step="0.001" />
+
+          <label for="roiZMin">Z Min</label>
+          <input id="roiZMin" type="number" step="0.001" />
+          <label for="roiZMax">Z Max</label>
+          <input id="roiZMax" type="number" step="0.001" />
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Proximity Filter (inches)</h2>
+        <label class="checkbox"><input id="useProxFilter" type="checkbox" /> Enable max GWS distance filter</label>
+        <div class="roi-grid" style="grid-template-columns: auto auto; margin-top:6px;">
+          <label for="proxThreshold">Max dist from GWS (in):</label>
+          <input id="proxThreshold" type="number" step="0.01" min="0" value="0.5" />
+        </div>
+      </div>
+
+      <div class="section">
+        <label for="sampleCount">STL Sample Points</label>
+        <input id="sampleCount" type="number" min="1000" max="250000" step="1000" value="60000" />
+        <button id="applySampleCountBtn" style="margin-top:8px;">Apply STL Sample Count</button>
+      </div>
+
+      <div class="section">
+        <label for="errorCap">Color Cap (inches)</label>
+        <input id="errorCap" type="number" min="0.0001" step="0.0001" value="0.05" />
+      </div>
+
+      <div class="section">
+        <label class="checkbox"><input id="showMaster" type="checkbox" checked /> Show GWS master points</label>
+        <label class="checkbox"><input id="showStl" type="checkbox" checked /> Show STL sample points</label>
+      </div>
+
+      <div class="section">
+        <h2>Fit Summary</h2>
+        <pre id="summary">Load both files to begin.</pre>
+      </div>
+
+      <div class="section">
+        <h2>Loaded Geometry Sizes</h2>
+        <pre id="sizeSummary">Load files to see dimensions in inches.</pre>
+      </div>
+
+      <div class="section">
+        <h2>Radius Analysis (inches)</h2>
+        <table id="radiusTable" class="data-table">
+          <thead>
+            <tr>
+              <th>Dataset</th>
+              <th>Center Before (X,Y,Z)</th>
+              <th>Center After (X,Y,Z)</th>
+              <th>Avg Radius Before</th>
+              <th>Avg Radius After</th>
+              <th>Mean Radius Before</th>
+              <th>Mean Radius After</th>
+              <th>Mean Radius After (All)</th>
+              <th>Best-Fit Error Before</th>
+              <th>Best-Fit Error After</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td colspan="10">Run a fit to populate radius metrics.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="section legend-wrap">
+        <h2>Error Legend</h2>
+        <div class="legend-bar"></div>
+        <div class="legend-labels">
+          <span id="legend0">0.000</span>
+          <span id="legend25">0.000</span>
+          <span id="legend50">0.000</span>
+          <span id="legend75">0.000</span>
+          <span id="legend100">0.000+</span>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Plot X-Axis Range (inches)</h2>
+        <label class="checkbox"><input id="usePlotRange" type="checkbox" /> Use custom X range for both plots</label>
+        <div class="roi-grid" style="grid-template-columns: auto auto; margin-top:6px;">
+          <label for="plotXMin">X Min (in):</label>
+          <input id="plotXMin" type="number" step="0.0001" />
+          <label for="plotXMax">X Max (in):</label>
+          <input id="plotXMax" type="number" step="0.0001" />
+        </div>
+        <div class="buttons" style="margin-top:8px;">
+          <button id="applyPlotRangeBtn">Apply Plot Range</button>
+          <button id="resetPlotRangeBtn">Reset Plot Range (Auto)</button>
+        </div>
+      </div>
+    </aside>
+
+    <main class="viewer-wrap">
+      <div class="viewer-3d-wrap">
+        <canvas id="viewer"></canvas>
+        <div id="hoverReadout" class="hover-readout">Hover a point to see X/Y/Z.</div>
+        <div id="status" class="status">Ready.</div>
+      </div>
+
+      <div class="viewer-charts">
+        <div class="chart-card">
+          <h2>Scaled Filtered Radial Distribution</h2>
+          <canvas id="histCanvas" class="hist-canvas" width="860" height="280"></canvas>
+          <div id="scaledPlotCursor" class="plot-cursor">Move cursor over chart to see X (in).</div>
+          <pre id="histStats" class="hist-stats">Run a fit to view GWS vs filtered STL radial distributions.</pre>
+        </div>
+        <div class="chart-card">
+          <h2>Raw Radial Distribution (GWS Raw vs STL Raw Selected)</h2>
+          <canvas id="rawHistCanvas" class="hist-canvas" width="860" height="280"></canvas>
+          <div id="rawPlotCursor" class="plot-cursor">Move cursor over chart to see X (in).</div>
+          <pre id="rawHistStats" class="hist-stats">Run a fit to view raw-point radial distributions.</pre>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="./viewer.js"></script>
+</body>
+</html>
