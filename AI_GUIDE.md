@@ -2,14 +2,14 @@
 
 ## Purpose
 
-This document is for future AI tools that need to run this repository and reproduce the same Diameter Analysis Portal outputs and charts.
+This document is for future AI tools that need to run this repository and reproduce outputs for all supported workflows.
 
 It includes:
 
 - exact runtime setup
 - Python environment requirements
 - app entry points
-- expected analysis behavior
+- expected analysis behavior across both apps
 - deterministic reproduction checklist
 
 ## Repository Summary
@@ -19,13 +19,63 @@ Two browser apps are present.
 - Legacy fit viewer: `index.html`
 - Diameter Analysis Portal (target for current plot set): `diameter_portal.html`
 
+## Full Capability Map
+
+### App 1: Legacy GWS vs STL Fit Viewer
+
+Entry and components:
+
+- UI: `index.html`
+- Controller/renderer: `viewer.js`
+- Worker math engine: `fit-worker.js`
+- Styles: `styles.css`
+
+Primary capabilities:
+
+- coarse fit and refine fit stages
+- independent XYZ or uniform scaling modes
+- ROI filtering for refine optimization
+- proximity filtering for refine optimization
+- point-cloud visibility toggles (included/excluded/proximity-excluded)
+- radius analysis table with before/after and filtered/all distinctions
+- scaled filtered histogram
+- raw distribution histogram
+- custom plot X-range overrides
+
+### App 2: Diameter Analysis Portal
+
+Entry and components:
+
+- UI: `diameter_portal.html`
+- Controller/analysis: `diameter-portal.js`
+- Styles: `diameter-portal.css`
+
+Primary capabilities:
+
+- GWS XY circle fit and STL sphere-fit-based slice analysis
+- opposite-angle paired-radii diameter derivation
+- unscaled/scaled/smoothed angle-vs-radius analysis
+- adaptive slice half-band expansion fallback
+- +/-3 sigma STL slice radius filtering
+- histogram overlays and interactive chart cursor readouts
+
+Shared graphics/runtime files:
+
+- `three.module.js`
+- `OrbitControls.js`
+
 Primary files for the diameter workflow:
 
 - `diameter_portal.html`
 - `diameter-portal.css`
 - `diameter-portal.js`
-- `three.module.js`
-- `OrbitControls.js`
+
+Primary files for the legacy workflow:
+
+- `index.html`
+- `viewer.js`
+- `fit-worker.js`
+- `styles.css`
 
 ## Python Environment Requirements
 
@@ -69,7 +119,11 @@ Open the diameter app:
 
 `http://localhost:8000/diameter_portal.html`
 
-## Reproduction Procedure for the Same Plot Family
+Open the legacy fit viewer:
+
+`http://localhost:8000/index.html`
+
+## Reproduction Procedure: Diameter Portal Plot Family
 
 Use this sequence to regenerate the same analysis outputs and chart types:
 
@@ -84,6 +138,19 @@ Use this sequence to regenerate the same analysis outputs and chart types:
 9. Change smoothing `F` and verify smoothed panel updates live.
 
 If selected slice is too thin and has too few points, the app auto-expands the half-band until sufficient data exists. This is expected behavior in Revision 2.
+
+## Reproduction Procedure: Legacy Fit Viewer Plot Family
+
+1. Launch local server.
+2. Open `index.html`.
+3. Load one GWS file and one STL file.
+4. Set source units correctly.
+5. Click `Run Coarse Fit`, then `Refine Fit`.
+6. Optionally enable ROI and proximity filtering and recalc refine.
+7. Confirm both legacy plot panels render:
+	- Scaled Filtered Radial Distribution
+	- Raw Radial Distribution
+8. Confirm Radius Analysis table populates before/after metrics.
 
 ## Expected Output Panels (Diameter Portal)
 
@@ -145,6 +212,13 @@ If scale metrics look wrong:
 1. Confirm STL and GWS unit selectors are correct.
 2. Confirm STL file corresponds to the selected GWS dataset.
 3. Verify the slice contains representative points (not edge/noise-only).
+
+If legacy fit viewer tables/charts do not update:
+
+1. Confirm you ran `Run Coarse Fit` and then `Refine Fit`.
+2. Confirm worker file `fit-worker.js` is served (browser dev tools network check).
+3. Temporarily disable ROI/proximity filters and rerun refine.
+4. Reset plot range to auto if custom X-range was applied.
 
 ## Revision and Release Mapping
 

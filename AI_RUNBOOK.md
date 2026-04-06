@@ -11,6 +11,20 @@ This repo now contains two browser apps:
 
 Do not remove Revision 1 assets when working on Revision 2 unless explicitly requested.
 
+## Documentation Coverage Matrix
+
+Use this matrix to ensure docs remain complete for full repository capability.
+
+- `README.md`: user-facing overview of both apps and run steps.
+- `AI_GUIDE.md`: deep reproducibility instructions for both chart families.
+- `AI_RUNBOOK.md`: maintenance contracts, architecture, and smoke tests.
+- `CHANGELOG.md`: revision history and behavior changes.
+- `REVISION_1.md`: locked snapshot for Revision 1 baseline.
+- `REVISION_2.md`: locked snapshot for Revision 2 baseline.
+- `GITHUB_UPLOAD.md`: commit/tag/push and release publication workflow.
+
+If a capability is added, update at least `README.md`, `AI_GUIDE.md`, and `CHANGELOG.md` in the same revision.
+
 ## Environment and Runtime Requirements
 
 - Runtime stack: plain HTML/CSS/JS.
