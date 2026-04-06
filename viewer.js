@@ -204,7 +204,7 @@ function setHistogramPlaceholder(message, canvasEl = ui.histCanvas) {
   ctx.strokeStyle = "#d4c5b0";
   ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
   ctx.fillStyle = "#6c5b49";
-  ctx.font = "12px Segoe UI";
+  ctx.font = "17px Segoe UI";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(message, width / 2, height / 2);
@@ -293,6 +293,46 @@ function drawVerticalLine(ctx, x, top, bottom, color, dash) {
   ctx.restore();
 }
 
+function medianInRange(values, minV, maxV) {
+  const filtered = [];
+  for (let i = 0; i < values.length; i += 1) {
+    const v = values[i];
+    if (v >= minV && v <= maxV) filtered.push(v);
+  }
+  if (filtered.length === 0) return NaN;
+  filtered.sort((a, b) => a - b);
+  const mid = Math.floor(filtered.length / 2);
+  if (filtered.length % 2 === 0) {
+    return (filtered[mid - 1] + filtered[mid]) * 0.5;
+  }
+  return filtered[mid];
+}
+
+function modeFromHistogram(histBins, minV, maxV) {
+  if (!histBins || histBins.length === 0) return NaN;
+  let bestIdx = 0;
+  let bestVal = histBins[0];
+  for (let i = 1; i < histBins.length; i += 1) {
+    if (histBins[i] > bestVal) {
+      bestVal = histBins[i];
+      bestIdx = i;
+    }
+  }
+  const binW = (maxV - minV) / histBins.length;
+  return minV + (bestIdx + 0.5) * binW;
+}
+
+function drawLabeledStatLine(ctx, x, top, bottom, color, dash, label, labelY) {
+  drawVerticalLine(ctx, x, top, bottom, color, dash);
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.font = "14px Segoe UI";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.fillText(label, x, labelY);
+  ctx.restore();
+}
+
 function renderDualHistogram(canvasEl, statsEl, seriesA, seriesB, emptyMessage, rangeKey, xRangeOverride) {
   if (!seriesA || !seriesB || !seriesA.values?.length || !seriesB.values?.length) {
     setHistogramPlaceholder(emptyMessage, canvasEl);
@@ -333,6 +373,10 @@ function renderDualHistogram(canvasEl, statsEl, seriesA, seriesB, emptyMessage, 
   const bins = 40;
   const aHist = histogramProb(seriesA.values, minV, maxV, bins);
   const bHist = histogramProb(seriesB.values, minV, maxV, bins);
+  const aMedian = medianInRange(seriesA.values, minV, maxV);
+  const bMedian = medianInRange(seriesB.values, minV, maxV);
+  const aMode = modeFromHistogram(aHist, minV, maxV);
+  const bMode = modeFromHistogram(bHist, minV, maxV);
   let yMax = 0;
   for (let i = 0; i < bins; i += 1) {
     if (aHist[i] > yMax) yMax = aHist[i];
@@ -418,15 +462,20 @@ function renderDualHistogram(canvasEl, statsEl, seriesA, seriesB, emptyMessage, 
   }
   ctx.stroke();
 
-  drawVerticalLine(ctx, xToPx(seriesA.stats.mean), padT, padT + plotH, "#0f766e", []);
+  drawLabeledStatLine(ctx, xToPx(seriesA.stats.mean), padT, padT + plotH, "#0f766e", [], "mean", padT + 2);
+  drawLabeledStatLine(ctx, xToPx(aMedian), padT, padT + plotH, "#0f766e", [6, 2], "median", padT + 14);
+  drawLabeledStatLine(ctx, xToPx(aMode), padT, padT + plotH, "#0f766e", [2, 3], "mode", padT + 26);
   drawVerticalLine(ctx, xToPx(seriesA.stats.mean - 3 * seriesA.stats.sigma), padT, padT + plotH, "#0f766e", [5, 3]);
   drawVerticalLine(ctx, xToPx(seriesA.stats.mean + 3 * seriesA.stats.sigma), padT, padT + plotH, "#0f766e", [5, 3]);
-  drawVerticalLine(ctx, xToPx(seriesB.stats.mean), padT, padT + plotH, "#b45309", []);
+
+  drawLabeledStatLine(ctx, xToPx(seriesB.stats.mean), padT, padT + plotH, "#b45309", [], "mean", padT + 2);
+  drawLabeledStatLine(ctx, xToPx(bMedian), padT, padT + plotH, "#b45309", [6, 2], "median", padT + 14);
+  drawLabeledStatLine(ctx, xToPx(bMode), padT, padT + plotH, "#b45309", [2, 3], "mode", padT + 26);
   drawVerticalLine(ctx, xToPx(seriesB.stats.mean - 3 * seriesB.stats.sigma), padT, padT + plotH, "#b45309", [5, 3]);
   drawVerticalLine(ctx, xToPx(seriesB.stats.mean + 3 * seriesB.stats.sigma), padT, padT + plotH, "#b45309", [5, 3]);
 
   ctx.fillStyle = "#5e4f3f";
-  ctx.font = "11px Segoe UI";
+  ctx.font = "15px Segoe UI";
   ctx.textAlign = "center";
   for (let i = 0; i <= xTicks; i += 1) {
     const t = i / xTicks;
@@ -442,7 +491,9 @@ function renderDualHistogram(canvasEl, statsEl, seriesA, seriesB, emptyMessage, 
 
   statsEl.textContent = [
     `${seriesA.label} mean: ${seriesA.stats.mean.toFixed(6)} in, sigma: ${seriesA.stats.sigma.toFixed(6)} in, +/-3sigma: [${(seriesA.stats.mean - 3 * seriesA.stats.sigma).toFixed(6)}, ${(seriesA.stats.mean + 3 * seriesA.stats.sigma).toFixed(6)}]`,
+    `${seriesA.label} median: ${Number.isFinite(aMedian) ? aMedian.toFixed(6) : "n/a"} in, mode: ${Number.isFinite(aMode) ? aMode.toFixed(6) : "n/a"} in`,
     `${seriesB.label} mean: ${seriesB.stats.mean.toFixed(6)} in, sigma: ${seriesB.stats.sigma.toFixed(6)} in, +/-3sigma: [${(seriesB.stats.mean - 3 * seriesB.stats.sigma).toFixed(6)}, ${(seriesB.stats.mean + 3 * seriesB.stats.sigma).toFixed(6)}]`,
+    `${seriesB.label} median: ${Number.isFinite(bMedian) ? bMedian.toFixed(6) : "n/a"} in, mode: ${Number.isFinite(bMode) ? bMode.toFixed(6) : "n/a"} in`,
     `${seriesA.label} center: ${seriesA.center ? `${seriesA.center.x.toFixed(6)}, ${seriesA.center.y.toFixed(6)}, ${seriesA.center.z.toFixed(6)}` : "n/a"}`,
     `${seriesB.label} center: ${seriesB.center ? `${seriesB.center.x.toFixed(6)}, ${seriesB.center.y.toFixed(6)}, ${seriesB.center.z.toFixed(6)}` : "n/a"}`,
     `X-axis range used: ${minV.toFixed(6)} to ${maxV.toFixed(6)} in`,

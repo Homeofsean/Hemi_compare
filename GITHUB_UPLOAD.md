@@ -1,12 +1,20 @@
-# GitHub Upload Guide (Revision 1)
+# GitHub Upload Guide (Revision 2)
 
-## 1) Initialize and tag Revision 1 (already prepared by agent if run)
+## 1) Commit and tag Revision 2
+
+```powershell
+git add .
+git commit -m "Revision 2"
+git tag -a revision-2 -m "Revision 2"
+```
+
+If repository is not initialized yet:
 
 ```powershell
 git init
 git add .
-git commit -m "Revision 1"
-git tag -a revision-1 -m "Revision 1"
+git commit -m "Revision 2"
+git tag -a revision-2 -m "Revision 2"
 ```
 
 ## 2) Create GitHub repository
@@ -23,14 +31,24 @@ Example:
 git remote add origin https://github.com/<user>/<repo>.git
 ```
 
-## 3) Push code and tag
+## 3) Push code and tags
 
 ```powershell
 git branch -M main
 git push -u origin main
 git push origin revision-1
+git push origin revision-2
 ```
 
-## 4) Optional release artifact
+## 4) Optional release artifacts
 
-Upload `GWS_file_intake_revision1.zip` to GitHub Releases for tag `revision-1`.
+- Upload `GWS_file_intake_revision1.zip` to GitHub Releases for tag `revision-1` if you are preserving Revision 1 artifact history.
+- Upload `GWS_file_intake_revision2.zip` to GitHub Releases for tag `revision-2` if you create a Revision 2 bundle.
+
+## 5) Verify remote state
+
+```powershell
+git fetch origin --tags
+git log --oneline -n 5
+git tag --list
+```

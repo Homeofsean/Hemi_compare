@@ -1,5 +1,32 @@
 # Changelog
 
+## Revision 2 - 2026-04-06
+
+### Added
+- New `diameter_portal.html` workflow for GWS vs STL diameter analysis.
+- `diameter-portal.js` with:
+	- GWS XY-only circle fit.
+	- STL sphere fit and alignment.
+	- STL slice analysis with adaptive half-band expansion.
+	- Opposite-angle paired-radii diameter derivation.
+	- Angle-vs-radius profiles (unscaled, scaled, smoothed).
+	- Circular shift profile alignment via RMSE minimization.
+	- Circular rolling-average smoothing with live `F` control.
+	- STL radius +/-3 sigma filtering.
+	- Chart cursor readouts and richer stats text.
+- `diameter-portal.css` and portal-specific chart cursor UI styling.
+- Revision 2 release docs and AI reproducibility guide.
+
+### Changed
+- Repository docs now describe both apps: legacy fit viewer and diameter portal.
+- Version references updated from Revision 1 to Revision 2.
+- Run instructions now include direct launch URL for `diameter_portal.html`.
+
+### Fixed
+- Resolved y-axis labeling bug that previously caused blank/failed plot rendering.
+- Resolved narrow-slice failure mode by auto-expanding STL half-band when needed.
+- Added smoothed-plot metrics for average offset and scale factor percent.
+
 ## Revision 1 - 2026-04-03
 
 ### Added
