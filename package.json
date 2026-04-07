@@ -1,0 +1,48 @@
+{
+  "name": "gws-stl-analysis-suite",
+  "version": "2.0.0",
+  "description": "Desktop wrapper for Diameter Analysis Portal and GWS vs STL Fit Viewer",
+  "main": "electron-main.js",
+  "author": "Stryker",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "build:win": "electron-builder --win nsis",
+    "build:portable": "electron-builder --win portable"
+  },
+  "devDependencies": {
+    "electron": "^31.3.1",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.stryker.gwsstlanalysis",
+    "productName": "GWS STL Analysis Suite",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron-main.js",
+      "app_launcher.html",
+      "diameter_portal.html",
+      "diameter-portal.css",
+      "diameter-portal.js",
+      "index.html",
+      "styles.css",
+      "viewer.js",
+      "fit-worker.js",
+      "three.module.js",
+      "OrbitControls.js",
+      "README.md",
+      "AI_GUIDE.md",
+      "AI_RUNBOOK.md",
+      "PACKAGING.md"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    }
+  }
+}

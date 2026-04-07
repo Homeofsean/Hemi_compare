@@ -1,0 +1,10 @@
+node_modules/
+dist/
+release_share/
+*.log
+
+# Local-only example geometry files (do not upload)
+709-04-72J-21 - VF-877-13-53 Datum DX- Mean.gws
+709-04-72J-21 -VF-877-13-53 Trident Helix Actual - Filtered.gws
+VF-877-13-53.stl
+VF-877-13-15 (1).stl
