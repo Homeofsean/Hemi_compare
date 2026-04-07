@@ -10,6 +10,8 @@ const ui = {
   zTarget: document.getElementById("zTarget"),
   zBand: document.getElementById("zBand"),
   smoothWindowF: document.getElementById("smoothWindowF"),
+  manualScaleFactor: document.getElementById("manualScaleFactor"),
+  optimizedScaleFactor: document.getElementById("optimizedScaleFactor"),
   rotXDeg: document.getElementById("rotXDeg"),
   rotYDeg: document.getElementById("rotYDeg"),
   refineZMin: document.getElementById("refineZMin"),
@@ -65,9 +67,21 @@ const state = {
   pickTargets: [],
   gwsMeanDiameter: null,
   gwsFit2D: null,
+  optimizedScaleFactor: 1,
+  manualScaleEdited: false,
   scaleFactor: 1,
   angleProfilesForSmoothing: null,
 };
+
+function getManualScaleFactor(fallback = 1) {
+  const raw = Number(ui.manualScaleFactor.value);
+  if (Number.isFinite(raw) && raw > 0) return raw;
+  return fallback;
+}
+
+function setOptimizedScaleFactorDisplay(value) {
+  ui.optimizedScaleFactor.value = Number.isFinite(value) ? value.toFixed(8) : "--";
+}
 
 // ── Chart cursor registry ──────────────────────────────────────────────────
 const chartRangeMap = new Map();
@@ -943,7 +957,7 @@ function updateSmoothedAngleRadiusPlot() {
       statsLines: [
         `Windowed smoothing: GWS=rolling-average(F=${f}), STL=rolling-max(F=${f})`,
         `GWS angular offset applied: ${gwsSmooth.shiftDeg?.toFixed(1) || "0.0"}\u00b0  |  Fit RMSE: ${Number.isFinite(gwsSmooth.fitRmse) ? gwsSmooth.fitRmse.toFixed(6) : "--"} in  |  Overlap bins: ${gwsSmooth.overlapCount || 0}`,
-        `Scale values: GWS=1.00000000  |  STL Unscaled=1.00000000  |  STL Scaled=${(src.scaleFactor || 1).toFixed(8)}`,
+        `Scale values: GWS=1.00000000  |  STL Unscaled=1.00000000  |  STL Manual=${(src.scaleFactor || 1).toFixed(8)}  |  STL Optimized=${(src.optimizedScaleFactor || 1).toFixed(8)}`,
         `Scale factor percent (STL Scaled vs GWS): ${Number.isFinite(scalePct) ? scalePct.toFixed(4) : "--"}%`,
         `Average offset (GWS - Unscaled STL, smoothed): ${Number.isFinite(avgOffset) ? avgOffset.toFixed(6) : "--"} in  |  bins used: ${offCount}`,
         `GWS mean radius (all plotted points): ${Number.isFinite(gwsStats.mean) ? gwsStats.mean.toFixed(6) : "--"} in  |  -3\u03c3: ${Number.isFinite(gwsStats.mean - 3 * gwsStats.sigma) ? (gwsStats.mean - 3 * gwsStats.sigma).toFixed(6) : "--"} in  |  +3\u03c3: ${Number.isFinite(gwsStats.mean + 3 * gwsStats.sigma) ? (gwsStats.mean + 3 * gwsStats.sigma).toFixed(6) : "--"} in`,
@@ -1561,8 +1575,14 @@ function buildDiameterResults(stlSlice, gwsFit2D) {
   };
 
   // ── STEP 3: Use strict-fit scale (jointly optimised with rotation) ───────
-  const scaleFactor = strictFit.scaleFactor;
+  const optimizedScaleFactor = strictFit.scaleFactor;
   const meanDiamScaleFactor = stlMeanDiam > 0 ? gwsMeanDiam / stlMeanDiam : 1; // kept for reference
+  state.optimizedScaleFactor = optimizedScaleFactor;
+  setOptimizedScaleFactorDisplay(optimizedScaleFactor);
+  if (!state.manualScaleEdited || !Number.isFinite(Number(ui.manualScaleFactor.value)) || Number(ui.manualScaleFactor.value) <= 0) {
+    ui.manualScaleFactor.value = optimizedScaleFactor.toFixed(8);
+  }
+  const scaleFactor = getManualScaleFactor(optimizedScaleFactor);
   state.scaleFactor = scaleFactor;
 
   const stlScaledDiam = new Float32Array(stlDiameters.length);
@@ -1606,6 +1626,7 @@ function buildDiameterResults(stlSlice, gwsFit2D) {
     stlScaled: stlScaledAngleProfile,
     stlUnscaled: stlAngleProfileRaw,
     scaleFactor,
+    optimizedScaleFactor,
   };
   updateSmoothedAngleRadiusPlot();
 
@@ -1637,7 +1658,8 @@ function buildDiameterResults(stlSlice, gwsFit2D) {
     ``,
     `Angular smoothing for optimisation: GWS=rolling-average(F=${f}), STL=rolling-max(F=${f})`,
     `Strict optimisation enabled: fractional-bin rotation + joint LS scaling`,
-    `Scale factor (strict joint rotation+scale fit): ${scaleFactor.toFixed(8)}`,
+    `Manual scale factor applied to scaled plots/results: ${scaleFactor.toFixed(8)}`,
+    `Optimized scale factor (strict joint rotation+scale fit): ${optimizedScaleFactor.toFixed(8)}`,
     `  Mean-diameter scale factor (for reference): ${meanDiamScaleFactor.toFixed(8)}`,
     `  Scaled STL mean diameter: ${(stlMeanDiam * scaleFactor).toFixed(6)} in`,
   ].join("\n"));
@@ -1979,6 +2001,18 @@ ui.smoothWindowF.addEventListener("input", () => {
     } else {
       updateSmoothedAngleRadiusPlot();
     }
+  } catch (err) {
+    console.error(err);
+    setStatus(`Failed: ${err.message}`);
+  }
+});
+
+ui.manualScaleFactor.addEventListener("input", () => {
+  state.manualScaleEdited = true;
+  if (!state.stlAligned || !state.stlCenter || !state.gwsRaw) return;
+  try {
+    refreshDiameterWithCurrentCenter();
+    setStatus(`Updated manual scale factor to ${getManualScaleFactor(state.optimizedScaleFactor).toFixed(8)}. Optimized reference: ${state.optimizedScaleFactor.toFixed(8)}.`);
   } catch (err) {
     console.error(err);
     setStatus(`Failed: ${err.message}`);
