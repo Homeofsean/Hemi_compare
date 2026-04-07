@@ -7,9 +7,9 @@ Purpose: Give future coding agents enough context to run, inspect, and maintain 
 This repo now contains two browser apps:
 
 - Revision 1 app: `index.html` (fit viewer).
-- Revision 2 app: `diameter_portal.html` (diameter analysis portal).
+- Revision 3 app: `diameter_portal.html` (diameter analysis portal).
 
-Do not remove Revision 1 assets when working on Revision 2 unless explicitly requested.
+Do not remove Revision 1 assets when working on Revision 3 unless explicitly requested.
 
 ## Documentation Coverage Matrix
 
@@ -21,6 +21,7 @@ Use this matrix to ensure docs remain complete for full repository capability.
 - `CHANGELOG.md`: revision history and behavior changes.
 - `REVISION_1.md`: locked snapshot for Revision 1 baseline.
 - `REVISION_2.md`: locked snapshot for Revision 2 baseline.
+- `REVISION_3.md`: locked snapshot for Revision 3 baseline.
 - `GITHUB_UPLOAD.md`: commit/tag/push and release publication workflow.
 
 If a capability is added, update at least `README.md`, `AI_GUIDE.md`, and `CHANGELOG.md` in the same revision.
@@ -62,7 +63,7 @@ App URLs:
 
 ## Architecture Map
 
-### Revision 2 Diameter Portal
+### Revision 3 Diameter Portal
 
 - UI: `diameter_portal.html`
 - Styles: `diameter-portal.css`
@@ -78,9 +79,14 @@ Pipeline summary:
 6. Align STL hemisphere axis to +Z (`alignStl`), then apply optional manual X/Y rotation.
 7. Compute STL slice near target Z (`computeSliceAdaptive`) with fallback half-band expansion.
 8. Build radii and opposite-angle diameters (`buildOppositePairDiameters`).
-9. Build angle profiles (`buildAngleRadiusProfile`), align by circular shift (`alignAngleProfiles`).
-10. Build scaled and smoothed variants (`scaleAngleProfile`, `smoothAngleProfile`).
-11. Render charts and stats text.
+9. Build angle profiles (`buildAngleRadiusProfile`).
+10. Apply smoothing before optimization:
+  - GWS: circular rolling average.
+  - STL: circular rolling maximum.
+11. Run strict fit for fractional angular rotation plus least-squares scale (`alignAndScaleStrict`).
+12. Build scaled and smoothed variants (`scaleAngleProfile`, `smoothAngleProfile`).
+13. Allow manual scale override while still reporting optimized scale.
+14. Render charts and stats text.
 
 ### Revision 1 Fit Viewer
 
@@ -95,7 +101,11 @@ Pipeline summary:
 
 - GWS fit must remain XY-only (Z ignored for circle fit).
 - STL diameters must remain opposite-angle paired radii, not direct `2*r` from arbitrary single bins.
-- Angle-profile alignment must preserve circular shift minimization by RMSE.
+- Optimization must smooth before fitting.
+- GWS smoothing must remain rolling average and STL smoothing must remain rolling max unless explicitly changed.
+- Strict fit must preserve fractional angular refinement and least-squares scale derivation unless explicitly changed.
+- Manual scale override must define scaled outputs while optimized scale remains visible.
+- Angle-profile alignment for displayed overlays must preserve circular shift minimization by RMSE.
 - Smoothed plot must preserve circular wraparound smoothing behavior.
 - Units displayed in charts/stats are inches.
 - STL radius +/-3 sigma filter must apply before designated comparisons.
@@ -111,7 +121,7 @@ Pipeline summary:
 1. Keep HTML element IDs in sync with JS references.
 2. If changing math helpers, validate downstream chart labels and summary text.
 3. If changing slice behavior, verify both normal and sparse slice cases.
-4. If changing smoothing/alignment, verify overlay curves still align sensibly.
+4. If changing smoothing/alignment, verify optimized and manual-scale outputs remain consistent.
 5. Validate no static editor errors after edits.
 
 ## Smoke Test: Diameter Portal
@@ -124,8 +134,9 @@ Pipeline summary:
   - histogram panels
   - angle-vs-radius (unscaled, scaled, smoothed)
 5. Set narrow Z half-band and verify analysis still runs (adaptive expansion fallback).
-6. Change smoothing `F` and verify smoothed chart and text update.
-7. Verify smoothed stats include:
+6. Change smoothing `F` and verify optimization and smoothed chart/text update.
+7. Change manual scale factor and verify scaled plots/results update while optimized scale display stays visible.
+8. Verify smoothed stats include:
   - average offset (`GWS - Unscaled STL`)
   - scale factor percent.
 

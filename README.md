@@ -1,8 +1,8 @@
-# GWS + STL Analysis Suite (Revision 2)
+# GWS + STL Analysis Suite (Revision 3)
 
 Browser-based analysis suite for GWS and STL metrology workflows.
 
-Revision 2 includes two tools in the same repository:
+Revision 3 includes two tools in the same repository:
 
 - `index.html`: GWS vs STL Fit Viewer (legacy alignment workflow).
 - `diameter_portal.html`: Diameter Analysis Portal (new diameter/radius-by-angle workflow).
@@ -35,18 +35,22 @@ Revision 2 includes two tools in the same repository:
 	- Scaled filtered radial distribution.
 	- Raw radial distribution (GWS raw vs STL raw selected).
 
-## Key Revision 2 Behavior
+## Key Revision 3 Behavior
 
 ### Diameter portal behavior
 
 - GWS fit is always 2D circle in XY across all loaded GWS points.
 - STL diameter distributions are slice-based and use opposite-angle pair logic.
-- Angle profiles can be aligned by circular shift (minimum RMSE).
-- Smoothed panel applies circular rolling average controlled by `F`.
+- Angle-profile optimization now smooths before rotation/scale fitting.
+- GWS smoothing uses circular rolling average controlled by `F`.
+- STL smoothing uses circular rolling maximum controlled by `F`.
+- Strict fit uses fractional-bin angular refinement plus least-squares scale optimization.
+- Optimized scale factor is displayed beside a manual scale-factor input.
+- Scaled plots and scaled reported results use the manual scale factor.
 - Smoothed stats include:
 	- average offset: smoothed GWS minus smoothed unscaled STL
 	- scale factor percent: `(scaleFactor - 1) * 100`
-- Scaled panels include explicit scale values in the plot stats text.
+- Scaled panels include explicit manual and optimized scale values in the plot stats text.
 
 ### Legacy fit viewer behavior
 
@@ -107,8 +111,9 @@ python -m http.server 8000
 5. Set `STL Sample Points` and click `Run Diameter Analysis`.
 6. Adjust `Z Slice Center` and `Z Half-Band` to inspect slices.
 7. Optionally apply manual rotation and center refinement range.
-8. Adjust smoothing window `F` and inspect smoothed stats.
-9. Read summary and chart stats for scale factor, offsets, means, medians, and sigma ranges.
+8. Adjust smoothing window `F`; this recomputes optimization.
+9. Optionally override the manual scale factor while keeping the optimized value visible.
+10. Read summary and chart stats for scale factor, offsets, means, medians, and sigma ranges.
 
 ## Basic Workflow: Legacy Fit Viewer
 
@@ -139,5 +144,6 @@ python -m http.server 8000
 - `CHANGELOG.md`: change history.
 - `REVISION_1.md`: Revision 1 snapshot.
 - `REVISION_2.md`: Revision 2 snapshot.
+- `REVISION_3.md`: Revision 3 snapshot.
 - `AI_RUNBOOK.md`: operational runbook for maintenance.
 - `AI_GUIDE.md`: detailed reproducibility guide for future AI tools.

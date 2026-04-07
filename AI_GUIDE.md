@@ -1,4 +1,4 @@
-# AI Guide: Reproducible GWS/STL Plot Generation (Revision 2)
+# AI Guide: Reproducible GWS/STL Plot Generation (Revision 3)
 
 ## Purpose
 
@@ -135,9 +135,11 @@ Use this sequence to regenerate the same analysis outputs and chart types:
 6. Set `Z Slice Center` and `Z Half-Band`.
 7. Click `Run Diameter Analysis`.
 8. Confirm all expected panels are populated.
-9. Change smoothing `F` and verify smoothed panel updates live.
+9. Change smoothing `F` and verify optimization and smoothed panel update live.
+10. Note the optimized scale factor.
+11. Optionally override the manual scale factor and confirm scaled plots/results change while optimized scale remains visible.
 
-If selected slice is too thin and has too few points, the app auto-expands the half-band until sufficient data exists. This is expected behavior in Revision 2.
+If selected slice is too thin and has too few points, the app auto-expands the half-band until sufficient data exists. This remains expected behavior in Revision 3.
 
 ## Reproduction Procedure: Legacy Fit Viewer Plot Family
 
@@ -171,10 +173,10 @@ The following chart categories should render after successful run:
 
 The smoothed stats text must include:
 
-- rolling average window (`F`)
+- smoothing window and method split (`GWS=rolling-average`, `STL=rolling-max`)
 - angular shift applied to GWS profile
 - fit RMSE and overlap bins
-- scale values (GWS, STL unscaled, STL scaled)
+- scale values (GWS, STL unscaled, STL manual, STL optimized)
 - scale factor percent (`(scaleFactor - 1) * 100`)
 - average offset (`GWS - Unscaled STL`) across overlapping smoothed bins
 - mean and +/-3 sigma values for plotted profiles
@@ -186,10 +188,13 @@ Future AI modifications must preserve these contracts unless intentionally chang
 1. GWS fit is 2D circle in XY (`fitCircle2D`), not full 3D sphere.
 2. STL center is from sphere least-squares fit (`fitSphereLeastSquares`).
 3. Diameter distribution uses opposite-angle paired radii (`buildOppositePairDiameters`).
-4. Angle-profile alignment uses circular shift minimizing RMSE (`alignAngleProfiles`).
-5. Smoothed profile uses circular rolling average with wraparound (`rollingAverageCircular`).
-6. STL outlier filtering uses +/-3 sigma on slice radii (`filterBySigma`).
-7. Units shown in chart and summary outputs are inches.
+4. Main diameter optimization smooths profiles before fitting.
+5. GWS smoothing uses circular rolling average and STL smoothing uses circular rolling max.
+6. Strict fit uses fractional-bin angular refinement and least-squares scaling (`alignAndScaleStrict`).
+7. Angle-profile overlay alignment preserves circular shift minimization by RMSE (`alignAngleProfiles`).
+8. Manual scale factor, when set, defines scaled plots/results while optimized scale remains displayed for reference.
+9. STL outlier filtering uses +/-3 sigma on slice radii (`filterBySigma`).
+10. Units shown in chart and summary outputs are inches.
 
 ## Determinism Notes
 
@@ -212,6 +217,7 @@ If scale metrics look wrong:
 1. Confirm STL and GWS unit selectors are correct.
 2. Confirm STL file corresponds to the selected GWS dataset.
 3. Verify the slice contains representative points (not edge/noise-only).
+4. Check whether the manual scale factor has been overridden away from the optimized value.
 
 If legacy fit viewer tables/charts do not update:
 
@@ -224,6 +230,7 @@ If legacy fit viewer tables/charts do not update:
 
 - Revision 1 docs: `REVISION_1.md`
 - Revision 2 docs: `REVISION_2.md`
+- Revision 3 docs: `REVISION_3.md`
 - History: `CHANGELOG.md`
 
 For release tagging and pushing, use `GITHUB_UPLOAD.md`.

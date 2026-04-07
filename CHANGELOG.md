@@ -1,5 +1,26 @@
 # Changelog
 
+## Revision 3 - 2026-04-07
+
+### Added
+- Diameter portal manual scale-factor override input with live recalculation of scaled plots and scaled reported values.
+- Diameter portal read-only optimized scale-factor display beside the manual input.
+- Strict diameter-portal optimization with fractional-bin angular refinement and joint least-squares scale fitting.
+- Revision 3 snapshot document.
+
+### Changed
+- Diameter-portal optimization now smooths profiles before rotation and scale fitting.
+- Diameter-portal smoothing is now asymmetric by dataset:
+	- GWS profile uses circular rolling average.
+	- STL profile uses circular rolling maximum.
+- Diameter-portal smoothing window `F` now recomputes optimization instead of updating a display-only panel.
+- Scaled diameter-portal outputs are now defined by the manual scale factor, while the optimized factor remains visible for reference.
+- Summary/stat text now distinguishes manual scale, optimized scale, and reference mean-diameter scale.
+
+### Fixed
+- Removed dependence on mean-diameter-only scaling for the primary diameter optimization path.
+- Reduced angular quantization error by allowing sub-bin angular refinement during strict fit.
+
 ## Revision 2 - 2026-04-06
 
 ### Added
