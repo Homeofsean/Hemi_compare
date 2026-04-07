@@ -425,6 +425,21 @@ function buildAngleRadiusProfile(points, cx, cy, requestedBins = 360, radiusRang
   };
 }
 
+// Least-squares optimal scale factor from rotationally-aligned profiles.
+// Minimises Σ(gws[i] - stl[i]*k)²  →  k = Σ(stl·gws) / Σ(stl²)
+function computeOptimalScale(gwsAlignedRadii, stlRadii, bins) {
+  let num = 0;
+  let den = 0;
+  for (let i = 0; i < bins; i += 1) {
+    const g = gwsAlignedRadii[i];
+    const s = stlRadii[i];
+    if (!Number.isFinite(g) || !Number.isFinite(s) || s === 0) continue;
+    num += s * g;
+    den += s * s;
+  }
+  return den > 0 ? num / den : 1;
+}
+
 function alignAngleProfiles(referenceProfile, targetProfile) {
   const refR = referenceProfile?.radii;
   const tgtR = targetProfile?.radii;
@@ -1402,7 +1417,30 @@ function buildDiameterResults(stlSlice, gwsFit2D) {
   const gwsMeanDiam = meanStd(gwsDiameters).mean;
   const stlMeanDiam = meanStd(stlDiameters).mean;
   state.gwsMeanDiameter = gwsMeanDiam;
-  const scaleFactor = stlMeanDiam > 0 ? gwsMeanDiam / stlMeanDiam : 1;
+
+  // ── STEP 1: Build angle profiles ─────────────────────────────────────────
+  const gwsAngleProfileRaw = buildAngleRadiusProfile(state.gwsRaw, gwsFit2D.center.x, gwsFit2D.center.y);
+  const stlAngleProfile = buildAngleRadiusProfile(
+    stlSlice.points,
+    stlSlice.centerXY.x,
+    stlSlice.centerXY.y,
+    360,
+    { min: stlRadiusFilter.min, max: stlRadiusFilter.max },
+  );
+
+  // ── STEP 2: Find optimal rotation BEFORE computing scale ──────────────────
+  const gwsAligned = alignAngleProfiles(gwsAngleProfileRaw, stlAngleProfile);
+  const gwsAngleProfile = {
+    ...gwsAligned.profile,
+    shiftDeg: gwsAligned.shiftDeg,
+    fitRmse: gwsAligned.rmse,
+    overlapCount: gwsAligned.overlapCount,
+  };
+
+  // ── STEP 3: Compute least-squares scale from rotationally-aligned bins ────
+  // k = Σ(stl·gws_aligned) / Σ(stl²)  minimises Σ(gws - stl·k)²
+  const scaleFactor = computeOptimalScale(gwsAligned.profile.radii, stlAngleProfile.radii, stlAngleProfile.bins);
+  const meanDiamScaleFactor = stlMeanDiam > 0 ? gwsMeanDiam / stlMeanDiam : 1; // kept for reference
   state.scaleFactor = scaleFactor;
 
   const stlScaledDiam = new Float32Array(stlDiameters.length);
@@ -1414,21 +1452,8 @@ function buildDiameterResults(stlSlice, gwsFit2D) {
   drawSingleHist(ui.stlDiamHist,    ui.stlDiamStats,    "STL Diameter",  stlDiameters,  "rgba(180,83,9,0.30)",   "#b45309");
   drawHist(ui.overlapRadiusHist, ui.overlapRadiusStats, "GWS Radius", gwsRadii, "STL Radius", stlRadii);
   drawHist(ui.overlapDiamHist,   ui.overlapDiamStats,   "GWS Diameter", gwsDiameters, "STL Diameter", stlDiameters);
-  const gwsAngleProfileRaw = buildAngleRadiusProfile(state.gwsRaw, gwsFit2D.center.x, gwsFit2D.center.y);
-  const stlAngleProfile = buildAngleRadiusProfile(
-    stlSlice.points,
-    stlSlice.centerXY.x,
-    stlSlice.centerXY.y,
-    360,
-    { min: stlRadiusFilter.min, max: stlRadiusFilter.max },
-  );
-  const gwsAligned = alignAngleProfiles(gwsAngleProfileRaw, stlAngleProfile);
-  const gwsAngleProfile = {
-    ...gwsAligned.profile,
-    shiftDeg: gwsAligned.shiftDeg,
-    fitRmse: gwsAligned.rmse,
-    overlapCount: gwsAligned.overlapCount,
-  };
+
+  // Plot 1: GWS vs Unscaled STL (rotation already applied above)
   drawAngleRadiusPlot(
     ui.angleRadiusPlot,
     ui.angleRadiusStats,
@@ -1437,6 +1462,7 @@ function buildDiameterResults(stlSlice, gwsFit2D) {
     { stlLabel: "Unscaled STL" },
   );
 
+  // ── STEP 4: Apply scale to STL profile, re-align to confirm shift holds ──
   const stlScaledAngleProfile = scaleAngleProfile(stlAngleProfile, scaleFactor);
   const gwsAlignedScaled = alignAngleProfiles(gwsAngleProfileRaw, stlScaledAngleProfile);
   const gwsAngleProfileScaled = {
@@ -1487,7 +1513,8 @@ function buildDiameterResults(stlSlice, gwsFit2D) {
     `  Radius  — mean: ${stlRStats.mean.toFixed(6)}  median: ${stlRMed.toFixed(6)}  \u03c3: ${stlRStats.sigma.toFixed(6)} in`,
     `  Diameter — mean: ${stlMeanDiam.toFixed(6)}  median: ${stlDMed.toFixed(6)} in`,
     ``,
-    `Scale factor (STL\u2192GWS diameter): ${scaleFactor.toFixed(8)}`,
+    `Scale factor (rotation-optimised LS from aligned bins): ${scaleFactor.toFixed(8)}`,
+    `  Mean-diameter scale factor (for reference): ${meanDiamScaleFactor.toFixed(8)}`,
     `  Scaled STL mean diameter: ${(stlMeanDiam * scaleFactor).toFixed(6)} in`,
   ].join("\n"));
 }
