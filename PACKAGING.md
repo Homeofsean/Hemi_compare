@@ -28,18 +28,25 @@ Requirements on recipient machine:
 
 ## Mode 2: Desktop Installer (.exe via Electron)
 
-Requirements on build machine:
+Recommended one-click approach:
 
-- Node.js LTS (includes npm)
+```powershell
+./Build-Installer.ps1
+```
 
-Commands:
+This script will:
+- Auto-detect Node.js and install LTS if needed (via Chocolatey or manual prompt).
+- Install npm dependencies.
+- Build Windows installer and portable EXE.
+
+Installer outputs are written to `dist/`.
+
+Manual alternative (if Node.js is already installed):
 
 ```powershell
 npm install
 npm run build:win
 ```
-
-Installer outputs are written to `dist/`.
 
 ## Mode 3: Portable Desktop EXE (Electron)
 
