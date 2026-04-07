@@ -494,6 +494,95 @@ function alignAngleProfiles(referenceProfile, targetProfile) {
   };
 }
 
+function sampleCircularLinear(values, idx, n) {
+  let x = idx;
+  while (x < 0) x += n;
+  while (x >= n) x -= n;
+  const i0 = Math.floor(x);
+  const i1 = (i0 + 1) % n;
+  const t = x - i0;
+  const v0 = values[i0];
+  const v1 = values[i1];
+  if (!Number.isFinite(v0) || !Number.isFinite(v1)) return NaN;
+  return v0 + (v1 - v0) * t;
+}
+
+// Strict optimisation: jointly optimise fractional angular shift and scale factor.
+function alignAndScaleStrict(referenceProfile, targetProfile, subStepsPerBin = 20) {
+  const refR = referenceProfile?.radii;
+  const tgtR = targetProfile?.radii;
+  const bins = Math.min(referenceProfile?.bins || 0, targetProfile?.bins || 0);
+  if (!refR?.length || !tgtR?.length || bins < 8) {
+    return {
+      alignedProfile: referenceProfile,
+      shiftBins: 0,
+      shiftDeg: 0,
+      scaleFactor: 1,
+      rmse: NaN,
+      overlapCount: 0,
+    };
+  }
+
+  let bestShift = 0;
+  let bestScale = 1;
+  let bestRmse = Infinity;
+  let bestCount = 0;
+  const sub = Math.max(1, Math.floor(subStepsPerBin));
+  const totalSteps = bins * sub;
+
+  for (let s = 0; s < totalSteps; s += 1) {
+    const shift = s / sub;
+
+    let num = 0;
+    let den = 0;
+    let count = 0;
+    for (let i = 0; i < bins; i += 1) {
+      const g = sampleCircularLinear(refR, i + shift, bins);
+      const t = tgtR[i];
+      if (!Number.isFinite(g) || !Number.isFinite(t) || t === 0) continue;
+      num += t * g;
+      den += t * t;
+      count += 1;
+    }
+    if (count === 0 || den <= 0) continue;
+
+    const k = num / den;
+    let err = 0;
+    for (let i = 0; i < bins; i += 1) {
+      const g = sampleCircularLinear(refR, i + shift, bins);
+      const t = tgtR[i];
+      if (!Number.isFinite(g) || !Number.isFinite(t)) continue;
+      const d = g - t * k;
+      err += d * d;
+    }
+    const rmse = Math.sqrt(err / count);
+    if (rmse < bestRmse) {
+      bestRmse = rmse;
+      bestShift = shift;
+      bestScale = k;
+      bestCount = count;
+    }
+  }
+
+  const alignedRadii = new Float32Array(bins + 1);
+  for (let i = 0; i < bins; i += 1) {
+    alignedRadii[i] = sampleCircularLinear(refR, i + bestShift, bins);
+  }
+  alignedRadii[bins] = alignedRadii[0];
+
+  return {
+    alignedProfile: {
+      ...referenceProfile,
+      radii: alignedRadii,
+    },
+    shiftBins: bestShift,
+    shiftDeg: (360 * bestShift) / bins,
+    scaleFactor: bestScale,
+    rmse: bestRmse,
+    overlapCount: bestCount,
+  };
+}
+
 function scaleAngleProfile(profile, factor) {
   const src = profile?.radii;
   if (!src?.length) return profile;
@@ -580,6 +669,33 @@ function filterBySigma(values, sigmaMultiplier = 3) {
   };
 }
 
+function rollingMaxCircular(values, f) {
+  const n = values.length - 1;
+  const out = new Float32Array(values.length);
+  if (n <= 0) return out;
+
+  const win = Math.max(1, Math.floor(f));
+  const left = Math.floor((win - 1) / 2);
+  const right = win - 1 - left;
+
+  for (let i = 0; i < n; i += 1) {
+    let maxV = -Infinity;
+    let found = false;
+    for (let k = -left; k <= right; k += 1) {
+      let j = i + k;
+      while (j < 0) j += n;
+      while (j >= n) j -= n;
+      const v = values[j];
+      if (!Number.isFinite(v)) continue;
+      if (v > maxV) maxV = v;
+      found = true;
+    }
+    out[i] = found ? maxV : NaN;
+  }
+  out[n] = out[0];
+  return out;
+}
+
 function rollingAverageCircular(values, f) {
   const n = values.length - 1;
   const out = new Float32Array(values.length);
@@ -607,11 +723,12 @@ function rollingAverageCircular(values, f) {
   return out;
 }
 
-function smoothAngleProfile(profile, f) {
+function smoothAngleProfile(profile, f, method = "avg") {
   if (!profile?.radii?.length) return profile;
+  const fn = method === "max" ? rollingMaxCircular : rollingAverageCircular;
   return {
     ...profile,
-    radii: rollingAverageCircular(profile.radii, f),
+    radii: fn(profile.radii, f),
   };
 }
 
@@ -785,9 +902,9 @@ function updateSmoothedAngleRadiusPlot() {
   const f = Math.max(1, Math.min(360, Number.isFinite(fRaw) ? Math.floor(fRaw) : 1));
   if (String(f) !== ui.smoothWindowF.value) ui.smoothWindowF.value = String(f);
 
-  const gwsSmoothRaw = smoothAngleProfile(src.gwsRaw, f);
-  const stlSmoothScaled = smoothAngleProfile(src.stlScaled, f);
-  const stlSmoothUnscaled = smoothAngleProfile(src.stlUnscaled, f);
+  const gwsSmoothRaw = smoothAngleProfile(src.gwsRaw, f, "avg");
+  const stlSmoothScaled = smoothAngleProfile(src.stlScaled, f, "max");
+  const stlSmoothUnscaled = smoothAngleProfile(src.stlUnscaled, f, "max");
   const aligned = alignAngleProfiles(gwsSmoothRaw, stlSmoothScaled);
   const gwsSmooth = {
     ...aligned.profile,
@@ -824,7 +941,7 @@ function updateSmoothedAngleRadiusPlot() {
       thirdColor: "#6b7280",
       thirdLabel: "Smoothed Unscaled STL",
       statsLines: [
-        `Rolling average window: F=${f} points`,
+        `Windowed smoothing: GWS=rolling-average(F=${f}), STL=rolling-max(F=${f})`,
         `GWS angular offset applied: ${gwsSmooth.shiftDeg?.toFixed(1) || "0.0"}\u00b0  |  Fit RMSE: ${Number.isFinite(gwsSmooth.fitRmse) ? gwsSmooth.fitRmse.toFixed(6) : "--"} in  |  Overlap bins: ${gwsSmooth.overlapCount || 0}`,
         `Scale values: GWS=1.00000000  |  STL Unscaled=1.00000000  |  STL Scaled=${(src.scaleFactor || 1).toFixed(8)}`,
         `Scale factor percent (STL Scaled vs GWS): ${Number.isFinite(scalePct) ? scalePct.toFixed(4) : "--"}%`,
@@ -1418,28 +1535,33 @@ function buildDiameterResults(stlSlice, gwsFit2D) {
   const stlMeanDiam = meanStd(stlDiameters).mean;
   state.gwsMeanDiameter = gwsMeanDiam;
 
-  // ── STEP 1: Build angle profiles ─────────────────────────────────────────
+  // ── STEP 1: Build + smooth angle profiles (used for optimisation) ───────
+  const fRaw = Number(ui.smoothWindowF.value);
+  const f = Math.max(1, Math.min(360, Number.isFinite(fRaw) ? Math.floor(fRaw) : 1));
+  if (String(f) !== ui.smoothWindowF.value) ui.smoothWindowF.value = String(f);
+
   const gwsAngleProfileRaw = buildAngleRadiusProfile(state.gwsRaw, gwsFit2D.center.x, gwsFit2D.center.y);
-  const stlAngleProfile = buildAngleRadiusProfile(
+  const stlAngleProfileRaw = buildAngleRadiusProfile(
     stlSlice.points,
     stlSlice.centerXY.x,
     stlSlice.centerXY.y,
     360,
     { min: stlRadiusFilter.min, max: stlRadiusFilter.max },
   );
+  const gwsAngleProfileForFit = smoothAngleProfile(gwsAngleProfileRaw, f, "avg");
+  const stlAngleProfileForFit = smoothAngleProfile(stlAngleProfileRaw, f, "max");
 
-  // ── STEP 2: Find optimal rotation BEFORE computing scale ──────────────────
-  const gwsAligned = alignAngleProfiles(gwsAngleProfileRaw, stlAngleProfile);
+  // ── STEP 2: Strict optimisation (fractional rotation + scale) ────────────
+  const strictFit = alignAndScaleStrict(gwsAngleProfileForFit, stlAngleProfileForFit, 20);
   const gwsAngleProfile = {
-    ...gwsAligned.profile,
-    shiftDeg: gwsAligned.shiftDeg,
-    fitRmse: gwsAligned.rmse,
-    overlapCount: gwsAligned.overlapCount,
+    ...strictFit.alignedProfile,
+    shiftDeg: strictFit.shiftDeg,
+    fitRmse: strictFit.rmse,
+    overlapCount: strictFit.overlapCount,
   };
 
-  // ── STEP 3: Compute least-squares scale from rotationally-aligned bins ────
-  // k = Σ(stl·gws_aligned) / Σ(stl²)  minimises Σ(gws - stl·k)²
-  const scaleFactor = computeOptimalScale(gwsAligned.profile.radii, stlAngleProfile.radii, stlAngleProfile.bins);
+  // ── STEP 3: Use strict-fit scale (jointly optimised with rotation) ───────
+  const scaleFactor = strictFit.scaleFactor;
   const meanDiamScaleFactor = stlMeanDiam > 0 ? gwsMeanDiam / stlMeanDiam : 1; // kept for reference
   state.scaleFactor = scaleFactor;
 
@@ -1458,13 +1580,13 @@ function buildDiameterResults(stlSlice, gwsFit2D) {
     ui.angleRadiusPlot,
     ui.angleRadiusStats,
     gwsAngleProfile,
-    stlAngleProfile,
-    { stlLabel: "Unscaled STL" },
+    stlAngleProfileForFit,
+    { stlLabel: "Unscaled STL (Rolling-Max Smoothed)" },
   );
 
-  // ── STEP 4: Apply scale to STL profile, re-align to confirm shift holds ──
-  const stlScaledAngleProfile = scaleAngleProfile(stlAngleProfile, scaleFactor);
-  const gwsAlignedScaled = alignAngleProfiles(gwsAngleProfileRaw, stlScaledAngleProfile);
+  // ── STEP 4: Apply strict-fit scale and report strict-fit error ───────────
+  const stlScaledAngleProfile = scaleAngleProfile(stlAngleProfileForFit, scaleFactor);
+  const gwsAlignedScaled = alignAngleProfiles(gwsAngleProfileForFit, stlScaledAngleProfile);
   const gwsAngleProfileScaled = {
     ...gwsAlignedScaled.profile,
     shiftDeg: gwsAlignedScaled.shiftDeg,
@@ -1476,13 +1598,13 @@ function buildDiameterResults(stlSlice, gwsFit2D) {
     ui.scaledAngleRadiusStats,
     gwsAngleProfileScaled,
     stlScaledAngleProfile,
-    { stlLabel: "Scaled STL" },
+    { stlLabel: "Scaled STL (Rolling-Max Smoothed)" },
   );
 
   state.angleProfilesForSmoothing = {
     gwsRaw: gwsAngleProfileRaw,
     stlScaled: stlScaledAngleProfile,
-    stlUnscaled: stlAngleProfile,
+    stlUnscaled: stlAngleProfileRaw,
     scaleFactor,
   };
   updateSmoothedAngleRadiusPlot();
@@ -1513,7 +1635,9 @@ function buildDiameterResults(stlSlice, gwsFit2D) {
     `  Radius  — mean: ${stlRStats.mean.toFixed(6)}  median: ${stlRMed.toFixed(6)}  \u03c3: ${stlRStats.sigma.toFixed(6)} in`,
     `  Diameter — mean: ${stlMeanDiam.toFixed(6)}  median: ${stlDMed.toFixed(6)} in`,
     ``,
-    `Scale factor (rotation-optimised LS from aligned bins): ${scaleFactor.toFixed(8)}`,
+    `Angular smoothing for optimisation: GWS=rolling-average(F=${f}), STL=rolling-max(F=${f})`,
+    `Strict optimisation enabled: fractional-bin rotation + joint LS scaling`,
+    `Scale factor (strict joint rotation+scale fit): ${scaleFactor.toFixed(8)}`,
     `  Mean-diameter scale factor (for reference): ${meanDiamScaleFactor.toFixed(8)}`,
     `  Scaled STL mean diameter: ${(stlMeanDiam * scaleFactor).toFixed(6)} in`,
   ].join("\n"));
@@ -1849,9 +1973,11 @@ ui.zBand.addEventListener("input", () => {
 
 ui.smoothWindowF.addEventListener("input", () => {
   try {
-    updateSmoothedAngleRadiusPlot();
-    if (state.angleProfilesForSmoothing) {
-      setStatus(`Updated smoothed angle plot with rolling window F=${Math.max(1, Math.min(360, Math.floor(Number(ui.smoothWindowF.value) || 1)))}.`);
+    if (state.stlAligned && state.stlCenter && state.gwsRaw) {
+      refreshDiameterWithCurrentCenter();
+      setStatus(`Updated optimisation with window F=${Math.max(1, Math.min(360, Math.floor(Number(ui.smoothWindowF.value) || 1)))} (GWS=avg, STL=max).`);
+    } else {
+      updateSmoothedAngleRadiusPlot();
     }
   } catch (err) {
     console.error(err);
