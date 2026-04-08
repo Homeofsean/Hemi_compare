@@ -6,6 +6,7 @@ const ui = {
   stlInput: document.getElementById("stlInput"),
   gwsUnit: document.getElementById("gwsUnit"),
   stlUnit: document.getElementById("stlUnit"),
+  stlPreScale: document.getElementById("stlPreScale"),
   sampleCount: document.getElementById("sampleCount"),
   zTarget: document.getElementById("zTarget"),
   zBand: document.getElementById("zBand"),
@@ -47,6 +48,7 @@ const ui = {
 
 const state = {
   gwsRaw: null,
+  stlSampleRaw: null,
   stlRaw: null,
   stlTriCount: 0,
   stlAligned: null,
@@ -77,6 +79,12 @@ function getManualScaleFactor(fallback = 1) {
   const raw = Number(ui.manualScaleFactor.value);
   if (Number.isFinite(raw) && raw > 0) return raw;
   return fallback;
+}
+
+function getStlPreScaleFactor() {
+  const raw = Number(ui.stlPreScale.value);
+  if (Number.isFinite(raw) && raw > 0) return raw;
+  return 1;
 }
 
 function setOptimizedScaleFactorDisplay(value) {
@@ -1646,6 +1654,7 @@ function buildDiameterResults(stlSlice, gwsFit2D) {
     `  Diameter — mean: ${gwsMeanDiam.toFixed(6)}  median: ${gwsDMed.toFixed(6)} in`,
     ``,
     `STL hemisphere analysis (${(state.stlRaw.length / 3).toLocaleString()} sampled pts, ${state.stlTriCount.toLocaleString()} triangles)`,
+    `  STL preload scale (dimensionless): ${getStlPreScaleFactor().toFixed(8)}`,
     `  Sphere center (raw, in): ${state.stlCenter.x.toFixed(6)}, ${state.stlCenter.y.toFixed(6)}, ${state.stlCenter.z.toFixed(6)}`,
     `  Hemisphere axis (raw):   ${state.stlAxis.x.toFixed(4)}, ${state.stlAxis.y.toFixed(4)}, ${state.stlAxis.z.toFixed(4)}`,
     `  Manual rotation applied: X=${Number(ui.rotXDeg.value).toFixed(3)}\u00b0, Y=${Number(ui.rotYDeg.value).toFixed(3)}\u00b0`,
@@ -1843,7 +1852,9 @@ async function loadInputs() {
   const stlBuffer = await stlFile.arrayBuffer();
   const stlParsed = parseBinaryStlSample(stlBuffer, sampleCount);
   state.stlTriCount = stlParsed.triCount;
-  state.stlRaw = scalePointArray(stlParsed.points, unitFactorToInches(ui.stlUnit.value));
+  state.stlSampleRaw = stlParsed.points;
+  const stlTotalScale = unitFactorToInches(ui.stlUnit.value) * getStlPreScaleFactor();
+  state.stlRaw = scalePointArray(state.stlSampleRaw, stlTotalScale);
 }
 
 function runDiameterAnalysis() {
@@ -2000,6 +2011,21 @@ ui.smoothWindowF.addEventListener("input", () => {
       setStatus(`Updated optimisation with window F=${Math.max(1, Math.min(360, Math.floor(Number(ui.smoothWindowF.value) || 1)))} (GWS=avg, STL=max).`);
     } else {
       updateSmoothedAngleRadiusPlot();
+    }
+  } catch (err) {
+    console.error(err);
+    setStatus(`Failed: ${err.message}`);
+  }
+});
+
+ui.stlPreScale.addEventListener("input", () => {
+  if (!state.stlSampleRaw) return;
+  try {
+    const stlTotalScale = unitFactorToInches(ui.stlUnit.value) * getStlPreScaleFactor();
+    state.stlRaw = scalePointArray(state.stlSampleRaw, stlTotalScale);
+    if (state.gwsRaw) {
+      runDiameterAnalysis();
+      setStatus(`Updated STL preload scale to ${getStlPreScaleFactor().toFixed(8)} and reran analysis.`);
     }
   } catch (err) {
     console.error(err);
